@@ -119,7 +119,7 @@ export const search = async(text: string, page: number, sourceId: LX.OnlineSourc
   const searchUserApi = () => {
     listInfo!.noItemLabel = window.i18n.t('list__loading')
     listInfo!.key = key
-    const searchSources = Object.keys(userApi.apis) as LX.OnlineSource[]
+    const searchSources = Object.keys(userApi.apis).filter(source => source !== 'local' && music[source as LX.OnlineSource]?.musicSearch) as LX.OnlineSource[]
     if (!searchSources.length) return Promise.reject(new Error('source not found: user_api'))
     const task = searchSources.map(source => {
       const searchImpl = apiSourceApis(source)

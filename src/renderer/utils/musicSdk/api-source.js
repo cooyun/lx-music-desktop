@@ -41,11 +41,16 @@ const getBuiltinApi = source => {
 const apis = source => {
   if (/^user_api/.test(apiSource.value)) {
     const enableUserApi = window.lxData?.appSetting?.['common.userApiSearchEnable']
+    const builtinApi = getBuiltinApi(source)
+    const customApi = (userApi.apis as any)[source]
     if (!enableUserApi) {
-      const builtinApi = getBuiltinApi(source)
       if (builtinApi) return builtinApi
+      if (customApi) return customApi
     }
-    return userApi.apis[source]
+    if (builtinApi && customApi) return { ...builtinApi, ...customApi }
+    if (builtinApi) return builtinApi
+    if (customApi) return customApi
+    throw new Error('Api is not found')
   }
   let api = getAPI(source)
   if (api) return api
