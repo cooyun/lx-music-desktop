@@ -10,7 +10,10 @@
               <th class="nobreak">{{ $t('music_name') }}</th>
               <th class="nobreak" style="width: 22%;">{{ $t('music_singer') }}</th>
               <th class="nobreak" style="width: 22%;">{{ $t('music_album') }}</th>
-              <th class="nobreak" style="width: 9%;">{{ $t('music_time') }}</th>
+              <th v-if="showUpdateTimeColumn" class="nobreak sort" style="width: 12%;" @click="handleSort('updateTime')">
+                {{ $t('music_update_time') }}<span v-if="sortKey === 'updateTime'">{{ sortOrder === -1 ? ' ↓' : ' ↑' }}</span>
+              </th>
+              <th class="nobreak sort" style="width: 9%;" @click="handleSort('interval')">{{ $t('music_time') }}<span v-if="sortKey === 'interval'">{{ sortOrder === -1 ? ' ↓' : ' ↑' }}</span></th>
               <th class="nobreak" style="width: 16%;">{{ $t('action') }}</th>
             </tr>
             <tr v-else>
@@ -18,7 +21,10 @@
               <th class="nobreak">{{ $t('music_name') }}</th>
               <th class="nobreak" style="width: 24%;">{{ $t('music_singer') }}</th>
               <th class="nobreak" style="width: 27%;">{{ $t('music_album') }}</th>
-              <th class="nobreak" style="width: 10%;">{{ $t('music_time') }}</th>
+              <th v-if="showUpdateTimeColumn" class="nobreak sort" style="width: 14%;" @click="handleSort('updateTime')">
+                {{ $t('music_update_time') }}<span v-if="sortKey === 'updateTime'">{{ sortOrder === -1 ? ' ↓' : ' ↑' }}</span>
+              </th>
+              <th class="nobreak sort" style="width: 10%;" @click="handleSort('interval')">{{ $t('music_time') }}<span v-if="sortKey === 'interval'">{{ sortOrder === -1 ? ' ↓' : ' ↑' }}</span></th>
             </tr>
           </thead>
         </table>
@@ -41,6 +47,7 @@
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 22%;"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 22%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+                <div v-if="showUpdateTimeColumn" class="list-item-cell" style="flex: 0 0 12%;"><span class="no-select">{{ getUpdateTimeLabel(item) }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 9%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 16%; padding-left: 0; padding-right: 0;">
                   <material-list-buttons :index="index" :remove-btn="false" :download-btn="assertApiSupport(item.source)" :play-btn="checkApiSource ? assertApiSupport(item.source) : true" @btn-click="handleListBtnClick" />
@@ -69,6 +76,7 @@
                 </div>
                 <div class="list-item-cell" style="flex: 0 0 24%;"><span class="select" :aria-label="item.singer">{{ item.singer }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 27%;"><span class="select" :aria-label="item.meta.albumName">{{ item.meta.albumName }}</span></div>
+                <div v-if="showUpdateTimeColumn" class="list-item-cell" style="flex: 0 0 14%;"><span class="no-select">{{ getUpdateTimeLabel(item) }}</span></div>
                 <div class="list-item-cell" style="flex: 0 0 10%;"><span class="no-select">{{ item.interval || '--/--' }}</span></div>
               </div>
             </template>
@@ -102,6 +110,7 @@
 import { clipboardWriteText } from '@common/utils/electron'
 import { assertApiSupport } from '@renderer/store/utils'
 import { ref } from '@common/utils/vueTools'
+import { dateFormat } from '@common/utils/common'
 import useList from './useList'
 import useMenu from './useMenu'
 import usePlay from './usePlay'
@@ -142,8 +151,24 @@ export default {
       type: Boolean,
       default: false,
     },
+    showUpdateTimeColumn: {
+      type: Boolean,
+      default: false,
+    },
+    sortable: {
+      type: Boolean,
+      default: false,
+    },
+    sortKey: {
+      type: String,
+      default: '',
+    },
+    sortOrder: {
+      type: Number,
+      default: -1,
+    },
   },
-  emits: ['show-menu', 'play-list', 'togglePage'],
+  emits: ['show-menu', 'play-list', 'togglePage', 'sort-change'],
   setup(props, { emit }) {
     const actionButtonsVisible = appSetting['list.actionButtonsVisible']
     const rightClickSelectedIndex = ref(-1)
@@ -246,6 +271,45 @@ export default {
           break
       }
     }
+    const getUpdateTimeValue = (item) => {
+      const rawTime = item.updateTime ?? item.meta?.updateTime ?? item.meta?.publishTime ?? item.meta?.publish_time ?? item.meta?.releaseDate ?? item.meta?.date
+      if (rawTime == null || rawTime === '') return 0
+      if (typeof rawTime === 'number' && !Number.isNaN(rawTime)) return rawTime
+      if (typeof rawTime === 'string') {
+        const trimmed = rawTime.trim()
+        if (/^\d+$/.test(trimmed)) return parseInt(trimmed)
+        const parsed = Date.parse(trimmed)
+        if (!Number.isNaN(parsed)) return parsed
+        const normalized = trimmed.replace(/-/g, '/')
+        const parsed2 = Date.parse(normalized)
+        if (!Number.isNaN(parsed2)) return parsed2
+      }
+      return 0
+    }
+
+    const getUpdateTimeLabel = (item) => {
+      const rawTime = item.updateTime ?? item.meta?.updateTime ?? item.meta?.publishTime ?? item.meta?.publish_time ?? item.meta?.releaseDate ?? item.meta?.date
+      if (rawTime == null || rawTime === '') return '--'
+      if (typeof rawTime === 'number' && !Number.isNaN(rawTime)) return dateFormat(rawTime)
+      if (typeof rawTime === 'string') {
+        const trimmed = rawTime.trim()
+        if (/^\d+$/.test(trimmed)) return dateFormat(parseInt(trimmed))
+        const parsed = Date.parse(trimmed)
+        if (!Number.isNaN(parsed)) return dateFormat(parsed)
+        const normalized = trimmed.replace(/-/g, '/')
+        const parsed2 = Date.parse(normalized)
+        if (!Number.isNaN(parsed2)) return dateFormat(parsed2)
+        return trimmed
+      }
+      return '--'
+    }
+
+    const handleSort = (key) => {
+      if (!props.sortable) return
+      let order = -1
+      if (props.sortKey === key) order = -props.sortOrder
+      emit('sort-change', { key, order })
+    }
     const scrollToTop = () => {
       listRef.value.scrollTo(0, true)
     }
@@ -269,6 +333,9 @@ export default {
       handleListRightClick,
       assertApiSupport,
 
+      getUpdateTimeLabel,
+      handleSort,
+
       isShowListAdd,
       isShowListAddMultiple,
       selectedAddMusicInfo,
@@ -279,6 +346,8 @@ export default {
 
       scrollToTop,
       actionButtonsVisible,
+      getUpdateTimeLabel,
+      handleSort,
     }
   },
 }

@@ -8,9 +8,14 @@
       :list="listInfo.list"
       :no-item="listInfo.noItemLabel"
       :source-tag="sourceId == 'all'"
+      :show-update-time-column="true"
+      :sortable="true"
+      :sort-key="sortKey"
+      :sort-order="sortOrder"
       check-api-source
       @toggle-page="handleTogglePage"
       @play-list="handlePlayList"
+      @sort-change="handleSortChangeEvent"
     />
   </div>
 </template>
@@ -35,6 +40,9 @@ const {
   listInfo,
   search,
   handlePlayList,
+  sortKey,
+  sortOrder,
+  handleSortChange,
 } = useList()
 
 watch(() => [props.sourceId, props.page], ([sourceId, page]) => {
@@ -58,6 +66,10 @@ const handleTogglePage = (page: number) => {
       page,
     },
   })
+}
+
+const handleSortChangeEvent = (payload: { key: string; order: number }) => {
+  handleSortChange(payload)
 }
 
 
