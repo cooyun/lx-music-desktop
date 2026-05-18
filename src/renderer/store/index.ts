@@ -105,8 +105,9 @@ export const sourceNames = computed(() => {
   if (userApi.list && userApi.list.length) {
     for (const api of userApi.list) {
       if (!api.sources) continue
-      for (const source of Object.keys(api.sources)) {
-        sourceNames[source as any] = api.name + (source === api.id ? '' : `(${source})`)
+      for (const _source of Object.keys(api.sources) as Array<LX.OnlineSource>) {
+        const src = _source as LX.OnlineSource
+        sourceNames[src] = api.name + (_source === api.id ? '' : `(${_source})`)
       }
     }
   }
