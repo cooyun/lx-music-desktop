@@ -12,6 +12,7 @@ const defaultSetting: LX.AppSetting = {
   'common.startInFullscreen': false,
   'common.langId': null,
   'common.apiSource': 'temp',
+  'common.userApiSearchEnable': false,
   'common.sourceNameType': 'alias',
   'common.font': '',
   'common.isShowAnimation': true,

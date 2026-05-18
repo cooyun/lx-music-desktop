@@ -29,9 +29,24 @@ for (const api of apiSourceInfo) {
 }
 
 const getAPI = source => apiList[`${apiSource.value}_api_${source}`]
+const getBuiltinApi = source => {
+  for (const api of apiSourceInfo) {
+    if (api.disabled || /^user_api/.test(api.id)) continue
+    const target = apiList[`${api.id}_api_${source}`]
+    if (target) return target
+  }
+  return null
+}
 
 const apis = source => {
-  if (/^user_api/.test(apiSource.value)) return userApi.apis[source]
+  if (/^user_api/.test(apiSource.value)) {
+    const enableUserApi = window.lxData?.appSetting?.['common.userApiSearchEnable']
+    if (!enableUserApi) {
+      const builtinApi = getBuiltinApi(source)
+      if (builtinApi) return builtinApi
+    }
+    return userApi.apis[source]
+  }
   let api = getAPI(source)
   if (api) return api
   throw new Error('Api is not found')

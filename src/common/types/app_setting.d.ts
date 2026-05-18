@@ -34,6 +34,11 @@ declare global {
       'common.apiSource': string
 
       /**
+       * 自定义源是否参与搜索地址调用
+       */
+      'common.userApiSearchEnable': boolean
+
+      /**
        * 音源名称类型，原名、别名
        */
       'common.sourceNameType': 'alias' | 'real'

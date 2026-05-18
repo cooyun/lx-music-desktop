@@ -2,6 +2,13 @@
 material-modal(:show="modelValue" bg-close teleport="#view" @close="handleClose")
   main.scroll(:class="$style.main")
     h2 {{ $t('user_api__title') }}
+    div.gap-top
+      base-checkbox(
+        id="user_api_search_enable"
+        :model-value="appSetting['common.userApiSearchEnable']"
+        :label="$t('user_api__search_enable')"
+        @update:model-value="updateSetting({'common.userApiSearchEnable': $event})"
+      )
     ul.scroll(v-if="apiList.length" :class="$style.content")
       li(v-for="(api, index) in apiList" :key="api.id" :class="[$style.listItem, {[$style.active]: appSetting['common.apiSource'] == api.id}]")
         div(:class="$style.listLeft")
@@ -61,6 +68,7 @@ export default {
       apiList,
       appSetting,
       isShowOnlineImportModal,
+      updateSetting,
     }
   },
   methods: {
