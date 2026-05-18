@@ -101,6 +101,16 @@ export const sourceNames = computed(() => {
     sourceNames[id as LX.OnlineSource] = window.i18n.t(prefix + id as any)
   }
 
+  // 自定义 userApi 的显示名称
+  if (userApi.list && userApi.list.length) {
+    for (const api of userApi.list) {
+      if (!api.sources) continue
+      for (const source of Object.keys(api.sources)) {
+        sourceNames[source as any] = api.name + (source === api.id ? '' : `(${source})`)
+      }
+    }
+  }
+
   return sourceNames
 })
 

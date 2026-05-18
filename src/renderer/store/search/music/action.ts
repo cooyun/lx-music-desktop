@@ -1,5 +1,6 @@
 import { markRaw } from '@common/utils/vueTools'
 import music from '@renderer/utils/musicSdk'
+import { apis as apiSourceApis } from '@renderer/utils/musicSdk/api-source'
 import { deduplicationList, toNewMusicInfo } from '@renderer/utils'
 import { sortInsert, similar } from '@common/utils/common'
 
@@ -94,7 +95,9 @@ export const search = async(text: string, page: number, sourceId: LX.OnlineSourc
     let task = []
     for (const source of sources) {
       if (source == 'all') continue
-      task.push((music[source]?.musicSearch.search(text, page, listInfos.all.limit) ?? Promise.reject(new Error('source not found: ' + source))).catch((error: any) => {
+      const searchImpl = (music[source] && music[source].musicSearch) || (apiSourceApis && apiSourceApis(source) && apiSourceApis(source).musicSearch)
+      const promise = searchImpl ? searchImpl.search(text, page, listInfos.all.limit) : Promise.reject(new Error('source not found: ' + source))
+      task.push(promise.catch((error: any) => {
         console.log(error)
         return {
           allPage: 1,
@@ -113,7 +116,9 @@ export const search = async(text: string, page: number, sourceId: LX.OnlineSourc
     if (listInfo?.key == key && listInfo?.list.length) return listInfo?.list
     listInfo!.noItemLabel = window.i18n.t('list__loading')
     listInfo!.key = key
-    return music[sourceId].musicSearch.search(text, page, listInfo!.limit).then((data: SearchResult) => {
+    const searchImpl = (music[sourceId] && music[sourceId].musicSearch) || (apiSourceApis && apiSourceApis(sourceId) && apiSourceApis(sourceId).musicSearch)
+    if (!searchImpl) return Promise.reject(new Error('source not found: ' + sourceId))
+    return searchImpl.search(text, page, listInfo!.limit).then((data: SearchResult) => {
       if (key != listInfo!.key) return []
       return setList(data, page, text)
     }).catch((error: any) => {
