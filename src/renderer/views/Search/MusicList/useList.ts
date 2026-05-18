@@ -107,5 +107,8 @@ export default () => {
     listInfo,
     search,
     handlePlayList,
+    sortKey,
+    sortOrder,
+    handleSortChange,
   }
 }
