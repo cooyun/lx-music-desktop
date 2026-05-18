@@ -87,31 +87,6 @@ export const resetListInfo = (sourceId: LX.OnlineSource | 'all' | 'user_api'): [
   return []
 }
 
-const searchUserApi = () => {
-  listInfo!.noItemLabel = window.i18n.t('list__loading')
-  listInfo!.key = key
-  const searchSources = Object.keys(userApi.apis) as LX.OnlineSource[]
-  if (!searchSources.length) return Promise.reject(new Error('source not found: user_api'))
-  const task = searchSources.map(source => {
-    const searchImpl = apiSourceApis(source)
-    const promise = searchImpl ? searchImpl.search(text, page, listInfo!.limit) : Promise.reject(new Error('source not found: ' + source))
-    return promise.catch((error: any) => {
-      console.log(error)
-      return {
-        allPage: 1,
-        limit: 30,
-        list: [],
-        source,
-        total: 0,
-      }
-    })
-  })
-  return Promise.all(task).then((results: SearchResult[]) => {
-    if (key != listInfo!.key) return []
-    return setLists(results, page, text, 'user_api')
-  })
-}
-
 export const search = async(text: string, page: number, sourceId: LX.OnlineSource | 'all' | 'user_api'): Promise<LX.Music.MusicInfo[]> => {
   const listInfo = listInfos[sourceId]
   if (!text) return resetListInfo(sourceId)
