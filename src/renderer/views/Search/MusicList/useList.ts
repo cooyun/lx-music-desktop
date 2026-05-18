@@ -26,7 +26,7 @@ export default () => {
   })
 
   const getUpdateTimeValue = (item: LX.Music.MusicInfo) => {
-    const rawTime = item.updateTime ?? item.meta?.updateTime ?? item.meta?.publishTime ?? item.meta?.publish_time ?? item.meta?.releaseDate ?? item.meta?.date
+    const rawTime = (item as any).updateTime ?? (item.meta as any)?.updateTime ?? (item.meta as any)?.publishTime ?? (item.meta as any)?.publish_time ?? (item.meta as any)?.releaseDate ?? (item.meta as any)?.date
     if (rawTime == null || rawTime === '') return 0
     if (typeof rawTime === 'number' && !Number.isNaN(rawTime)) return rawTime
     if (typeof rawTime === 'string') {
@@ -42,7 +42,7 @@ export default () => {
   }
 
   const getIntervalValue = (item: LX.Music.MusicInfo) => {
-    const raw = item._interval ?? item.interval
+    const raw = (item as any)._interval ?? item.interval
     if (raw == null || raw === '') return 0
     if (typeof raw === 'number' && !Number.isNaN(raw)) return raw
     if (typeof raw === 'string') {
