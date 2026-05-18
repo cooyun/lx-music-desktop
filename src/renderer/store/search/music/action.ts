@@ -5,6 +5,7 @@ import { deduplicationList, toNewMusicInfo } from '@renderer/utils'
 import { sortInsert, similar } from '@common/utils/common'
 
 import { sources, maxPages, listInfos } from './state'
+import { userApi } from '@renderer/store'
 
 interface SearchResult {
   list: LX.Music.MusicInfo[]
@@ -33,7 +34,7 @@ const handleSortList = (list: LX.Music.MusicInfo[], keyword: string) => {
 }
 
 
-const setLists = (results: SearchResult[], page: number, text: string): LX.Music.MusicInfo[] => {
+const setLists = (results: SearchResult[], page: number, text: string, sourceId: 'all' | 'user_api' = 'all'): LX.Music.MusicInfo[] => {
   let pages = []
   let totals = []
   let limit = 0
@@ -47,7 +48,8 @@ const setLists = (results: SearchResult[], page: number, text: string): LX.Music
     totals.push(source.total)
   }
   list = deduplicationList(list.map(s => markRaw(toNewMusicInfo(s))))
-  let listInfo = listInfos.all
+  let listInfo = listInfos[sourceId]
+  if (!listInfo) return []
   listInfo.maxPage = Math.max(0, ...pages)
   const total = Math.max(0, ...totals)
   if (page == 1 || (total && list.length)) listInfo.total = total
@@ -74,7 +76,7 @@ const setList = (datas: SearchResult, page: number, text: string): LX.Music.Musi
   return listInfo.list
 }
 
-export const resetListInfo = (sourceId: LX.OnlineSource | 'all'): [] => {
+export const resetListInfo = (sourceId: LX.OnlineSource | 'all' | 'user_api'): [] => {
   let listInfo = listInfos[sourceId]
   if (!listInfo) return []
   listInfo.list = []
@@ -85,17 +87,42 @@ export const resetListInfo = (sourceId: LX.OnlineSource | 'all'): [] => {
   return []
 }
 
-export const search = async(text: string, page: number, sourceId: LX.OnlineSource | 'all'): Promise<LX.Music.MusicInfo[]> => {
+const searchUserApi = () => {
+  listInfo!.noItemLabel = window.i18n.t('list__loading')
+  listInfo!.key = key
+  const searchSources = Object.keys(userApi.apis) as LX.OnlineSource[]
+  if (!searchSources.length) return Promise.reject(new Error('source not found: user_api'))
+  const task = searchSources.map(source => {
+    const searchImpl = apiSourceApis(source)
+    const promise = searchImpl ? searchImpl.search(text, page, listInfo!.limit) : Promise.reject(new Error('source not found: ' + source))
+    return promise.catch((error: any) => {
+      console.log(error)
+      return {
+        allPage: 1,
+        limit: 30,
+        list: [],
+        source,
+        total: 0,
+      }
+    })
+  })
+  return Promise.all(task).then((results: SearchResult[]) => {
+    if (key != listInfo!.key) return []
+    return setLists(results, page, text, 'user_api')
+  })
+}
+
+export const search = async(text: string, page: number, sourceId: LX.OnlineSource | 'all' | 'user_api'): Promise<LX.Music.MusicInfo[]> => {
   const listInfo = listInfos[sourceId]
   if (!text) return resetListInfo(sourceId)
   const key = `${page}__${text}`
-  if (sourceId == 'all') {
+  const searchAll = () => {
     listInfo!.noItemLabel = window.i18n.t('list__loading')
     listInfo!.key = key
     let task = []
     for (const source of sources) {
-      if (source == 'all') continue
-      const searchImpl = (music[source] && music[source].musicSearch) || (apiSourceApis && apiSourceApis(source) && apiSourceApis(source).musicSearch)
+      if (source == 'all' || source == 'user_api') continue
+      const searchImpl = apiSourceApis(source)
       const promise = searchImpl ? searchImpl.search(text, page, listInfos.all.limit) : Promise.reject(new Error('source not found: ' + source))
       task.push(promise.catch((error: any) => {
         console.log(error)
@@ -112,21 +139,53 @@ export const search = async(text: string, page: number, sourceId: LX.OnlineSourc
       if (key != listInfo!.key) return []
       return setLists(results, page, text)
     })
-  } else {
-    if (listInfo?.key == key && listInfo?.list.length) return listInfo?.list
+  }
+
+  const searchUserApi = () => {
     listInfo!.noItemLabel = window.i18n.t('list__loading')
     listInfo!.key = key
-    const searchImpl = (music[sourceId] && music[sourceId].musicSearch) || (apiSourceApis && apiSourceApis(sourceId) && apiSourceApis(sourceId).musicSearch)
-    if (!searchImpl) return Promise.reject(new Error('source not found: ' + sourceId))
-    return searchImpl.search(text, page, listInfo!.limit).then((data: SearchResult) => {
+    const searchSources = Object.keys(userApi.apis) as LX.OnlineSource[]
+    if (!searchSources.length) return Promise.reject(new Error('source not found: user_api'))
+    const task = searchSources.map(source => {
+      const searchImpl = apiSourceApis(source)
+      const promise = searchImpl ? searchImpl.search(text, page, listInfo!.limit) : Promise.reject(new Error('source not found: ' + source))
+      return promise.catch((error: any) => {
+        console.log(error)
+        return {
+          allPage: 1,
+          limit: 30,
+          list: [],
+          source,
+          total: 0,
+        }
+      })
+    })
+    return Promise.all(task).then((results: SearchResult[]) => {
       if (key != listInfo!.key) return []
-      return setList(data, page, text)
-    }).catch((error: any) => {
-      resetListInfo(sourceId)
-      listInfo!.noItemLabel = window.i18n.t('list__load_failed')
-      console.log(error)
-      throw error
+      return setLists(results, page, text, 'user_api')
     })
   }
+
+  if (sourceId == 'all') {
+    return searchAll()
+  }
+  if (sourceId == 'user_api') {
+    return searchUserApi()
+  }
+
+  if (listInfo?.key == key && listInfo?.list.length) return listInfo?.list
+  listInfo!.noItemLabel = window.i18n.t('list__loading')
+  listInfo!.key = key
+  const searchImpl = apiSourceApis(sourceId)
+  if (!searchImpl) return Promise.reject(new Error('source not found: ' + sourceId))
+  return searchImpl.search(text, page, listInfo!.limit).then((data: SearchResult) => {
+    if (key != listInfo!.key) return []
+    return setList(data, page, text)
+  }).catch((error: any) => {
+    resetListInfo(sourceId)
+    listInfo!.noItemLabel = window.i18n.t('list__load_failed')
+    console.log(error)
+    throw error
+  })
 }
 

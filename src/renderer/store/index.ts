@@ -89,27 +89,22 @@ export const getSourceI18nPrefix = () => {
 
 export const sourceNames = computed(() => {
   const prefix = getSourceI18nPrefix()
-  const sourceNames: Record<LX.OnlineSource | 'all', string> = {
+  const sourceNames: Record<LX.OnlineSource | 'all' | 'user_api', string> = {
     kw: 'kw',
     tx: 'tx',
     kg: 'kg',
     mg: 'mg',
     wy: 'wy',
     all: window.i18n.t(prefix + 'all' as any),
+    user_api: window.i18n.t('source_user_api'),
   }
   for (const { id } of music.sources) {
     sourceNames[id as LX.OnlineSource] = window.i18n.t(prefix + id as any)
   }
 
-  // 自定义 userApi 的显示名称
-  if (userApi.list && userApi.list.length) {
-    for (const api of userApi.list) {
-      if (!api.sources) continue
-      for (const _source of Object.keys(api.sources) as Array<LX.OnlineSource>) {
-        const src = _source as LX.OnlineSource
-        sourceNames[src] = api.name + (_source === api.id ? '' : `(${_source})`)
-      }
-    }
+  const currentUserApi = userApi.list.find(api => api.id === appSetting['common.apiSource'])
+  if (currentUserApi && /^user_api/.test(appSetting['common.apiSource']) && appSetting['common.userApiSearchEnable']) {
+    sourceNames.user_api = currentUserApi.name
   }
 
   return sourceNames

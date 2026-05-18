@@ -1,9 +1,11 @@
-import { reactive, markRaw, watch } from '@common/utils/vueTools'
+import { reactive, watch } from '@common/utils/vueTools'
 import music from '@renderer/utils/musicSdk'
 import { userApi } from '@renderer/store'
 import { appSetting } from '@renderer/store/setting'
 
 // import { deduplicationList } from '@common/utils/renderer'
+
+type SearchSource = LX.OnlineSource | 'all' | 'user_api'
 
 export declare interface ListInfo {
   list: LX.Music.MusicInfo[]
@@ -15,14 +17,24 @@ export declare interface ListInfo {
   noItemLabel: string
 }
 
-interface ListInfos extends Partial<Record<LX.OnlineSource, ListInfo>> {
-  'all': ListInfo
+interface ListInfos extends Partial<Record<SearchSource, ListInfo>> {
+  all: ListInfo
+  user_api: ListInfo
 }
 
-export const sources: Array<LX.OnlineSource | 'all'> = markRaw([])
+export const sources: Array<SearchSource> = reactive([] as Array<SearchSource>)
 
-export const listInfos: ListInfos = markRaw({
+export const listInfos: ListInfos = reactive({
   all: reactive<ListInfo>({
+    page: 1,
+    maxPage: 0,
+    limit: 30,
+    total: 0,
+    list: [],
+    key: null,
+    noItemLabel: '',
+  }),
+  user_api: reactive<ListInfo>({
     page: 1,
     maxPage: 0,
     limit: 30,
@@ -49,27 +61,30 @@ for (const source of music.sources) {
 }
 sources.push('all')
 
-// 动态加入自定义 API 的源（当开启自定义源搜索或该自定义源实现了 musicSearch 时）
-watch(() => Object.keys(userApi.apis), (keys) => {
-  for (const _source of keys as string[]) {
-    const source = _source as LX.OnlineSource
-    if (sources.includes(source)) continue
-    const apiImpl = (userApi.apis as any)[source] as any
-    const enableBySetting = appSetting['common.userApiSearchEnable'] || /^user_api/.test(appSetting['common.apiSource'])
-    const hasMusicSearch = apiImpl && apiImpl.musicSearch
-    if (!enableBySetting && !hasMusicSearch) continue
-    // 插入到 'all' 之前
+// 动态加入自定义 API 搜索按钮（当开启自定义源搜索且已选择自定义源时）
+const updateCustomSourceButton = () => {
+  const shouldShow = appSetting['common.userApiSearchEnable'] && /^user_api/.test(appSetting['common.apiSource']) && Object.keys(userApi.apis).length > 0
+  const hasCustomSource = sources.includes('user_api')
+  if (shouldShow && !hasCustomSource) {
     const insertIndex = Math.max(0, sources.indexOf('all'))
-    sources.splice(insertIndex, 0, source)
-    ;(listInfos as any)[source] = reactive<ListInfo>({
-      page: 1,
-      maxPage: 0,
-      limit: 30,
-      total: 0,
-      list: [],
-      key: '',
-      noItemLabel: '',
-    })
-    ;(maxPages as any)[source] = 0
+    sources.splice(insertIndex, 0, 'user_api')
+  } else if (!shouldShow && hasCustomSource) {
+    const index = sources.indexOf('user_api')
+    if (index >= 0) sources.splice(index, 1)
+    listInfos.user_api.list = []
+    listInfos.user_api.page = 0
+    listInfos.user_api.maxPage = 0
+    listInfos.user_api.total = 0
+    listInfos.user_api.noItemLabel = ''
   }
-}, { immediate: true })
+}
+
+watch(
+  () => [
+    Object.keys(userApi.apis).join(','),
+    appSetting['common.userApiSearchEnable'],
+    appSetting['common.apiSource'],
+  ],
+  updateCustomSourceButton,
+  { immediate: true },
+)

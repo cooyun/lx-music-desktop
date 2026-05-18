@@ -69,11 +69,11 @@ export default {
     const route = useRoute()
     const router = useRouter()
 
-    const sources = _sources.map(id => {
-      return {
+    const sources = computed(() => {
+      return _sources.map(id => ({
         id,
         label: sourceNames.value[id],
-      }
+      }))
     })
     const handleSourceChange = (id) => {
       void router.replace({
