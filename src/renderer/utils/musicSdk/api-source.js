@@ -40,7 +40,7 @@ const getBuiltinApi = source => {
 
 const apis = source => {
   if (/^user_api/.test(apiSource.value)) {
-    const enableUserApi = window.lxData?.appSetting?.['common.userApiSearchEnable']
+    const enableUserApi = window.lxData && window.lxData.appSetting && window.lxData.appSetting['common.userApiSearchEnable']
     const builtinApi = getBuiltinApi(source)
     const customApi = userApi.apis[source]
     if (!enableUserApi) {
